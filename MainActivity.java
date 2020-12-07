@@ -148,14 +148,14 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                           TextView textView = findViewById(R.id.resultText);
                           textView.setText("音声を聞く: リスト内テキストをタップ");
 
-                          task = new HttpGetTask(translateText);
-                          task1 = new HttpGetTask1(translateText);
-                          task2 = new HttpGetTask2(translateText);
-                          task3 = new HttpGetTask3(translateText);
-                          task4 = new HttpGetTask4(translateText);
+                          task = new HttpGetTask(translateText,listView,getApplicationContext());
+                          task1 = new HttpGetTask1(translateText,listView,getApplicationContext());
+                          task2 = new HttpGetTask2(translateText,listView,getApplicationContext());
+                          task3 = new HttpGetTask3(translateText,listView,getApplicationContext());
+                          task4 = new HttpGetTask4(translateText,listView,getApplicationContext());
 
                           try{
-                              new HttpGetTask(translateText).execute(new URL(getURL("&source=ja&target=en")));
+                             // new HttpGetTask(translateText).execute(new URL(getURL("&source=ja&target=en")));
                               task.execute(new URL(getURL("&source=ja&target=en")));
                              // Log.d("Httpresult:" , "とってきた変数は" + translateText.get(0));
                           } catch (MalformedURLException e) {
@@ -186,8 +186,8 @@ public class MainActivity extends Activity implements TextToSpeech.OnInitListene
                           } catch (MalformedURLException e) {
                               e.printStackTrace();
                           }
-                          ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this, R.layout.list, translateText);
-                          listView.setAdapter(adapter);
+                        //  ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this, R.layout.list, translateText);
+                        //  listView.setAdapter(adapter);
                     } else {
                         Toast.makeText(getApplicationContext(), "エラーが発生しました", Toast.LENGTH_SHORT).show();
                     }
