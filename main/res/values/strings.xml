@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">OnseininnsikitsuboiVer3</string>
+    <string name="signed_in_fmt">ログイン中</string>
+    <string name="signed_out">ログアウト</string>
 </resources>

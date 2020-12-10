@@ -13,6 +13,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity android:name=".PermissionCheckActivity">
+
+        </activity>
+        <activity android:name=".GoogleSignInActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

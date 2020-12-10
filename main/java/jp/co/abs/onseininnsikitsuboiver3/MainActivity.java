@@ -4,43 +4,52 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import android.content.Intent;
 import android.graphics.Color;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
 import android.speech.SpeechRecognizer;
+import android.speech.tts.TextToSpeech;
+import android.util.Log;
 import android.view.View;
-import android.widget.ArrayAdapter;
+import android.widget.AdapterView;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.ProtocolException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Locale;
 
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements TextToSpeech.OnInitListener {
 
     //UI
     ImageView imageview;
     EditText onseiResult;
+    ListView listView;
 
     //音声認識結果のリスト
     ArrayList<String> data;
-    ArrayList<String> translateText = new ArrayList<>();
-
+    String resultsString = "";
     Intent intent; // SpeechRecognizerに渡すIntent
     SpeechRecognizer recognizer;
     int BUTTON_STATUS = 0;
-    String resultsString = "";
+
+    //音声の翻訳
+    ArrayList<String> translateText = new ArrayList<>();
+    private HttpGetTask task;
+    private HttpGetTask1 task1;
+    private HttpGetTask2 task2;
+    private HttpGetTask3 task3;
+    private HttpGetTask4 task4;
+
+    //テキスト読み上げ
+    TextToSpeech tts;
+    float pitch = 1.0f;
+    float rate = 1.0f;
+    int SPEECH_STATUS = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -54,6 +63,11 @@ public class MainActivity extends AppCompatActivity {
         onseiResult.setFocusable(false);
         onseiResult.setEnabled(false);
         onseiResult.setTextColor(Color.BLACK);
+
+        listView = findViewById(R.id.list);
+        listView.setOnItemClickListener(onClick_item);
+
+
     }
 
     @Override
@@ -74,48 +88,153 @@ public class MainActivity extends AppCompatActivity {
         stopListening();
     }
 
+    @Override
+    public void onInit(int status){
+        if(status == TextToSpeech.SUCCESS){
+            Locale locale;
+            switch(SPEECH_STATUS) {
+                case 0:
+                    locale = Locale.ENGLISH;
+                    tts.setLanguage(locale);
+                    break;
+                case 1:
+                    locale = Locale.FRENCH;
+                    tts.setLanguage(locale);
+                    break;
+                case 2:
+                    locale = Locale.ITALY;
+                    tts.setLanguage(locale);
+                    break;
+                case 3:
+                    locale = Locale.GERMANY;
+                    tts.setLanguage(locale);
+                    break;
+                case 4:
+                    locale = Locale.CHINA;
+                    tts.setLanguage(locale);
+                    break;
+            }
+        }else{
+            Toast.makeText(getApplicationContext(), "エラーが発生しました", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // テキスト読み上げ
+    private AdapterView.OnItemClickListener onClick_item = new AdapterView.OnItemClickListener() {
+        @Override
+        public void onItemClick(AdapterView<?> adapterView, View view, int i, long l) {
+            switch(i){
+                case 0:
+                    SPEECH_STATUS = 0;
+                    break;
+                case 1:
+                    SPEECH_STATUS = 1;
+                    break;
+                case 2:
+                    SPEECH_STATUS = 2;
+                    break;
+                case 3:
+                    SPEECH_STATUS = 3;
+                    break;
+                case 4:
+                    SPEECH_STATUS = 4;
+                    break;
+            }
+
+            tts = new TextToSpeech(MainActivity.this,MainActivity.this);
+            tts.setPitch(pitch);
+            tts.setSpeechRate(rate);
+            if(tts.isSpeaking()){
+                tts.stop();
+            }
+            String speechText = (String) listView.getSelectedItem();
+            tts.speak(speechText,TextToSpeech.QUEUE_FLUSH,null);
+        }
+    };
+
     private View.OnClickListener onClick_button = new View.OnClickListener() {
         @Override
         public void onClick(View v) {
             switch (BUTTON_STATUS) {
                 case 0:
-                    BUTTON_STATUS++;
+                    BUTTON_STATUS = 1;
+                    // 入力テキストがある場合、削除
+                    if(resultsString != ""){
+                        onseiResult.setText(null);
+                        resultsString = "";
+                    }
+                    //翻訳結果がリスト表示されている場合、削除
+                    if(translateText.size() != 0){
+                        translateText.clear();
+                        listView.setAdapter(null);
+                    }
                     startListening();
                     break;
                 case 1:
-                    BUTTON_STATUS--;
+                    BUTTON_STATUS = 0;
                     stopListening();
+                      if (resultsString != "") {
+                          TextView textView = findViewById(R.id.resultText);
+                          textView.setText("音声を聞く: リスト内テキストをタップ");
 
-                  //  if (resultsString != "") {
+                          task = new HttpGetTask(translateText,listView,getApplicationContext());
+                          task1 = new HttpGetTask1(translateText,listView,getApplicationContext());
+                          task2 = new HttpGetTask2(translateText,listView,getApplicationContext());
+                          task3 = new HttpGetTask3(translateText,listView,getApplicationContext());
+                          task4 = new HttpGetTask4(translateText,listView,getApplicationContext());
 
-                       // TextView textView = findViewById(R.id.resultText);
-                      //  textView.setText("音声を聞く: リスト内テキストをタップ");
+                          task.execute(getURL("&source=ja&target=en"));
+                          task1.execute(getURL("&source=ja&target=fr"));
+                          task2.execute(getURL("&source=ja&target=it"));
+                          task3.execute(getURL("&source=ja&target=de"));
+                          task4.execute(getURL("&source=ja&target=es"));
+                        /*  try{
+                             // new HttpGetTask(translateText).execute(new URL(getURL("&source=ja&target=en")));
+                              task.execute(new URL(getURL("&source=ja&target=en")));
+                             // Log.d("Httpresult:" , "とってきた変数は" + translateText.get(0));
+                          } catch (MalformedURLException e) {
+                              e.printStackTrace();
+                          }
 
-                        task.execute( getURL("&source=ja&target=en"));
-                        task1.execute(getURL("&source=ja&target=fr"));
-                        task2.execute(getURL("&source=ja&target=it"));
-                        task3.execute(getURL("&source=ja&target=de"));
-                        task4.execute(getURL("&source=ja&target=es"));
-
-                        /*
-                        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,getUrl);
-                        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,getUrl1);
-                        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,getUrl2);
-                        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,getUrl3);
-                        task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR,getUrl4);
+                          try{
+                            //  new HttpGetTask1(translateText).execute(new URL(getURL("&source=ja&target=fr")));
+                              task1.execute(new URL(getURL("&source=ja&target=fr")));
+                          } catch (MalformedURLException e) {
+                              e.printStackTrace();
+                          }
+                          try{
+                            // new HttpGetTask2(translateText).execute(new URL(getURL("&source=ja&target=it")));
+                              task2.execute(new URL(getURL("&source=ja&target=it")));
+                          } catch (MalformedURLException e) {
+                              e.printStackTrace();
+                          }
+                          try{
+                             // new HttpGetTask3(translateText).execute(new URL(getURL("&source=ja&target=de")));
+                              task3.execute(new URL(getURL("&source=ja&target=de")));
+                          } catch (MalformedURLException e) {
+                              e.printStackTrace();
+                          }
+                          try{
+                            // new HttpGetTask4(translateText).execute(new URL(getURL("&source=ja&target=es")));
+                              task4.execute(new URL(getURL("&source=ja&target=es")));
+                          } catch (MalformedURLException e) {
+                              e.printStackTrace();
+                          }
                          */
-                //    } else {
-                //        Toast.makeText(getApplicationContext(), "エラーが発生しました", Toast.LENGTH_SHORT).show();
-                //    }
+                        //  ArrayAdapter<String> adapter = new ArrayAdapter<>(MainActivity.this, R.layout.list, translateText);
+                        //  listView.setAdapter(adapter);
+                    } else {
+                        Toast.makeText(getApplicationContext(), "エラーが発生しました", Toast.LENGTH_SHORT).show();
+                    }
                 break;
             }
         }
     };
 
     public String getURL(String language){
-        String masterURL = "https://script.google.com/macros/s/AKfycbw8auBlxHNG0aq14kE-K6CYZk49RwFl-cYfwEtAK2gLdIrp4_c/exec?text=";
+        String masterURL = "https://script.google.com/macros/s/AKfycbw8auBlxHNG0aq14kE-K6CYZk49RwFl-cYfwEtAK2gLdIrp4_c/exec"+"?text=";
         String APIUrl = masterURL + resultsString + language;
-
+        
         return APIUrl;
     }
 
@@ -180,13 +299,13 @@ public class MainActivity extends AppCompatActivity {
         @Override
         public void onResults(Bundle results) {
             data = results.getStringArrayList(android.speech.SpeechRecognizer.RESULTS_RECOGNITION);
-
-            //  String resultsString = "";
+            
             for (int i = 0; i < data.size(); i++) {
                 resultsString += data.get(i);
             }
 
             onseiResult.setText(resultsString);
+
             Toast.makeText(getApplicationContext(), "マイクボタンをタップしてください", Toast.LENGTH_SHORT).show();
         }
 
@@ -211,276 +330,5 @@ public class MainActivity extends AppCompatActivity {
         public void onEvent(int i, Bundle bundle) {
         }
     }
-
-    // 非同期処理
-    AsyncTask task = new AsyncTask<String, Void, String>() {
-        @Override
-        protected String doInBackground(String... strings) {
-
-            StringBuffer result = null;
-            try {
-              URL url = new URL(strings[0]);
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-
-                connection.connect();
-
-                int responseCode = connection.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    // テキストを取得する
-                    InputStream in = connection.getInputStream();
-                    String encoding = connection.getContentEncoding();
-                    if (null == encoding) {
-                        encoding = "UTF-8";
-                    }
-                    result = new StringBuffer(); // StringBufferクラスのインスタンス生成
-                    final InputStreamReader inReader = new InputStreamReader(in, encoding);
-                    final BufferedReader bufReader = new BufferedReader(inReader);
-                    String line; // 行数
-
-                    while ((line = bufReader.readLine()) != null) {
-                        result.append(line); // 行の追加
-                    }
-                    bufReader.close();
-                    inReader.close();
-                    in.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return new String(result); // StringBuffer->Stringへキャスト
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-            if(result != null) {
-                translateText.add(result);
-            }else{
-                Toast.makeText(MainActivity.this, "翻訳に失敗しました", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
-
-    // 非同期処理
-    AsyncTask task1 = new AsyncTask<String, Void, String>() {
-        @Override
-        protected String doInBackground(String... strings) {
-
-            StringBuffer result = null;
-            try {
-               URL url = new URL(strings[0]);
-
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-
-                connection.connect();
-
-                int responseCode = connection.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    // テキストを取得する
-                    InputStream in = connection.getInputStream();
-                    String encoding = connection.getContentEncoding();
-                    if (null == encoding) {
-                        encoding = "UTF-8";
-                    }
-                    result = new StringBuffer();
-                    final InputStreamReader inReader = new InputStreamReader(in, encoding);
-                    final BufferedReader bufReader = new BufferedReader(inReader);
-                    String line = null;
-
-                    while ((line = bufReader.readLine()) != null) {
-                        result.append(line);
-                    }
-
-                    bufReader.close();
-                    inReader.close();
-                    in.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return new String(result);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-            if(result != null) {
-                translateText.add(result);
-            }else{
-                Toast.makeText(MainActivity.this, "翻訳に失敗しました", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
-
-    // 非同期処理
-    AsyncTask task2 = new AsyncTask<String, Void, String>() {
-        @Override
-        protected String doInBackground(String... strings) {
-
-            StringBuffer result = null;
-            try {
-               URL url = new URL(strings[0]);
-
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-
-                connection.connect();
-
-                int responseCode = connection.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    // テキストを取得する
-                    InputStream in = connection.getInputStream();
-                    String encoding = connection.getContentEncoding();
-                    if (null == encoding) {
-                        encoding = "UTF-8";
-                    }
-                    result = new StringBuffer();
-                    final InputStreamReader inReader = new InputStreamReader(in, encoding);
-                    final BufferedReader bufReader = new BufferedReader(inReader);
-                    String line = null;
-
-                    while ((line = bufReader.readLine()) != null) {
-                        result.append(line);
-                    }
-
-                    bufReader.close();
-                    inReader.close();
-                    in.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return new String(result);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-            if(result != null) {
-                translateText.add(result);
-            }else{
-                Toast.makeText(MainActivity.this, "翻訳に失敗しました", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
-
-    // 非同期処理
-    AsyncTask task3 = new AsyncTask<String, Void, String>() {
-        @Override
-        protected String doInBackground(String... strings) {
-
-            StringBuffer result = null;
-            try {
-               URL url = new URL(strings[0]);
-
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-
-                connection.connect();
-
-                int responseCode = connection.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    // テキストを取得する
-                    InputStream in = connection.getInputStream();
-                    String encoding = connection.getContentEncoding();
-                    if (null == encoding) {
-                        encoding = "UTF-8";
-                    }
-                    result = new StringBuffer();
-                    final InputStreamReader inReader = new InputStreamReader(in, encoding);
-                    final BufferedReader bufReader = new BufferedReader(inReader);
-                    String line = null;
-
-                    while ((line = bufReader.readLine()) != null) {
-                        result.append(line);
-                    }
-
-                    bufReader.close();
-                    inReader.close();
-                    in.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return new String(result);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-            if(result != null) {
-                translateText.add(result);
-            }else{
-                Toast.makeText(MainActivity.this, "翻訳に失敗しました", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
-
-    // 非同期処理
-    AsyncTask task4 = new AsyncTask<String, Void, String>() {
-        @Override
-        protected String doInBackground(String... strings) {
-
-            StringBuffer result = null;
-            try {
-               URL url = new URL(strings[0]);
-
-                HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-
-                connection.setRequestMethod("GET");
-
-                connection.connect();
-
-                int responseCode = connection.getResponseCode();
-
-                if (responseCode == HttpURLConnection.HTTP_OK) {
-                    // テキストを取得する
-                    InputStream in = connection.getInputStream();
-                    String encoding = connection.getContentEncoding();
-                    if (null == encoding) {
-                        encoding = "UTF-8";
-                    }
-                    result = new StringBuffer();
-                    final InputStreamReader inReader = new InputStreamReader(in, encoding);
-                    final BufferedReader bufReader = new BufferedReader(inReader);
-                    String line = null;
-
-                    while ((line = bufReader.readLine()) != null) {
-                        result.append(line);
-                    }
-
-                    bufReader.close();
-                    inReader.close();
-                    in.close();
-                }
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-            return new String(result);
-        }
-
-        @Override
-        protected void onPostExecute(String result) {
-            super.onPostExecute(result);
-            if(result != null) {
-                translateText.add(result);
-                ArrayAdapter<String> adapter = new ArrayAdapter<>(getApplicationContext(), R.layout.list, translateText);
-                ListView listView = (ListView) MainActivity.this.findViewById(R.id.list);
-                listView.setAdapter(adapter);
-            }else{
-                Toast.makeText(MainActivity.this, "翻訳に失敗しました", Toast.LENGTH_SHORT).show();
-            }
-        }
-    };
 }
 
